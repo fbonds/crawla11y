@@ -1,0 +1,25 @@
+{
+  "name": "crawla11y",
+  "version": "1.0.0",
+  "description": "accessibility testing with crawler",
+  "main": "index.js",
+  "scripts": {
+    "test:accessibility": "node scripts/accessibility-test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fbonds/crawla11y.git"
+  },
+  "author": "Fletcher Bonds",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fbonds/crawla11y/issues"
+  },
+  "homepage": "https://github.com/fbonds/crawla11y#readme",
+  "devDependencies": {
+    "axe-core": "^4.9.1",
+    "fs": "^0.0.1-security",
+    "pa11y": "^8.0.0",
+    "puppeteer": "^22.12.1"
+  }
+}
