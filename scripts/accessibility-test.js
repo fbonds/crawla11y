@@ -6,7 +6,7 @@ const fs = require('fs');
 (async () => {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
-  await page.goto('https://localhost:3000');
+  await page.goto('http://localhost:3000');
 
   // Example function to collect links on the page
   const links = await page.evaluate(() => Array.from(document.querySelectorAll('a'), a => a.href));
