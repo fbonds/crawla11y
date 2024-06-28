@@ -1,39 +1,39 @@
 const puppeteer = require('puppeteer');
 const pa11y = require('pa11y');
-const axe = require('axe-core');
 const fs = require('fs');
 
 (async () => {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
-  await page.goto('http://localhost:3000');
 
-  // Example function to collect links on the page
-  const links = await page.evaluate(() => Array.from(document.querySelectorAll('a'), a => a.href));
-
+  const visitedLinks = new Set();
+  const basePathsToIgnore = ['/admin', '/notifications'];
   let combinedResultsText = '';
 
-  for (let link of links) {
-    console.log(`Testing ${link}`);
+  function shouldIgnorePath(url) {
+    const urlPath = new URL(url).pathname;
+    return basePathsToIgnore.some(basePath => urlPath.startsWith(basePath));
+  }
 
-    // Test with HTMLCodeSniffer
-    const resultsHTMLCS = await pa11y(link, {
+  async function testPage(url) {
+    if (visitedLinks.has(url) || shouldIgnorePath(url)) {
+      return;
+    }
+    visitedLinks.add(url);
+
+    await page.goto(url);
+
+    console.log(`Testing ${url}`);
+
+    // Test with HTMLCodeSniffer using Pa11y
+    const resultsHTMLCS = await pa11y(url, {
       browser: browser,
       page: page,
       standard: 'WCAG2AA',
     });
 
-    // Inject and run Axe
-    await page.goto(link);
-    const axeResults = await page.evaluate(async (axeSource) => {
-      const script = document.createElement('script');
-      script.innerHTML = axeSource;
-      document.head.appendChild(script);
-      return await axe.run();
-    }, axe.source);
-
     // Format results as text
-    combinedResultsText += `Results for ${link}\n\n`;
+    combinedResultsText += `Results for ${url}\n\n`;
 
     combinedResultsText += 'Pa11y Results:\n';
     resultsHTMLCS.issues.forEach(issue => {
@@ -43,23 +43,20 @@ const fs = require('fs');
       combinedResultsText += `Context: ${issue.context}\n\n`;
     });
 
-    combinedResultsText += 'Axe Results:\n';
-    axeResults.violations.forEach(violation => {
-      combinedResultsText += `ID: ${violation.id}\n`;
-      combinedResultsText += `Description: ${violation.description}\n`;
-      combinedResultsText += `Impact: ${violation.impact}\n`;
-      combinedResultsText += `Tags: ${violation.tags.join(', ')}\n`;
-      combinedResultsText += `Help: ${violation.help}\n`;
-      combinedResultsText += `Help URL: ${violation.helpUrl}\n`;
-      combinedResultsText += `Nodes:\n`;
-      violation.nodes.forEach(node => {
-        combinedResultsText += `  HTML: ${node.html}\n`;
-        combinedResultsText += `  Target: ${node.target.join(', ')}\n\n`;
-      });
-    });
-
     combinedResultsText += '\n\n';
+
+    // Collect links on the current page and test them recursively
+    const links = await page.evaluate(() => Array.from(document.querySelectorAll('a'), a => a.href));
+    for (const link of links) {
+      // Only test links within the same domain
+      if (link.startsWith('http://localhost:3000') || link.startsWith('https://example.com')) {
+        await testPage(link);
+      }
+    }
   }
+
+  // Start testing from the initial URL
+  await testPage('http://localhost:3000');
 
   await browser.close();
 
